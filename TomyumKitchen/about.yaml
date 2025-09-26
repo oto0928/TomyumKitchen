@@ -1,0 +1,144 @@
+ThaiRestaurantApp:
+  architecture:
+    ui: "SwiftUI + NavigationStack, MVVM"
+    state_management: ["ObservableObject", "@State", "@Environment"]
+    data: "REST/Firestore -> Repository -> ViewModel"
+    push: "UserNotifications"
+    payment: ["Apple Pay", "Stripe (拡張)"]
+    localization: ["ja", "en", "th"]
+
+  directories:
+    - App/                # エントリポイント、ルーティング
+    - Features/           # 機能ごとのモジュール
+      - Home/
+      - Menu/
+      - DishDetail/
+      - Order/
+      - Reservation/
+      - StoreInfo/
+      - Reviews/
+      - Loyalty/
+      - Settings/
+    - Shared/
+      - Components/
+      - DesignSystem/
+      - Models/
+      - Services/
+      - Repository/
+      - Utils/
+    - Resources/
+      - Assets.xcassets
+      - Localizable.strings
+      - MockData.json
+    - Tests/
+
+  screens:
+    Home:
+      - 今日のおすすめ
+      - キャンペーンバナー
+      - ショートカット: [メニュー, 予約, 注文, アクセス]
+    Menu:
+      categories: ["カレー", "麺", "前菜", "デザート", "ドリンク"]
+      list_features: ["並び替え(人気/辛さ/価格)", "フィルタ(辛さ/ベジ/グルテンフリー)"]
+      detail:
+        - 写真
+        - 説明
+        - 辛さレベル
+        - アレルゲン
+        - 価格
+        - カスタマイズ: [辛さ, パクチー, ご飯量]
+        - 注文に追加ボタン
+    Order:
+      - カート
+      - 受取時間選択
+      - 連絡先
+      - 支払い(店頭/MVP)
+    Reservation:
+      - 人数
+      - 日時
+      - 連絡先
+      - 要望
+    StoreInfo:
+      - 営業時間
+      - 住所
+      - 地図リンク
+      - 電話
+      - 混雑目安
+      - SNSリンク
+    Settings:
+      - 言語
+      - 通知
+      - テーマ
+      - アレルゲン設定
+
+  data_models:
+    Category:
+      id: string
+      name: string
+      icon: string
+    DishOption:
+      kind: ["spicyLevel", "cilantro", "riceSize"]
+      values: list
+      defaultValue: string
+    Dish:
+      id: string
+      name: string
+      description: string
+      price: int
+      imageURL: url
+      categoryId: string
+      spicy: int
+      allergens: list
+      isVegetarian: bool
+      options: [DishOption]
+    CartItem:
+      id: uuid
+      dish: Dish
+      quantity: int
+      selectedOptions: dict
+    Reservation:
+      id: string
+      name: string
+      phone: string
+      partySize: int
+      date: date
+      note: string
+      status: ["requested", "confirmed", "cancelled"]
+
+  flows:
+    - Home -> Menu -> Detail -> Cart -> OrderConfirm
+    - Home -> Reservation -> Submit -> Confirm
+    - Home -> StoreInfo -> OpenMap
+    - FirstLaunch -> PreferenceSetup(allergens/spicy) -> Save
+
+  backend:
+    mvp: "JSON Hosting (Firebase Hosting / Cloud Storage)"
+    endpoints: ["/categories", "/dishes", "/banners", "/hours", "/policies"]
+    extension: "Firestore / Hasura + Cloud Functions"
+
+  notification:
+    - 予約確定通知
+    - リマインド(前日・30分前)
+    - 受取リマインド
+
+  loyalty:
+    - スタンプカード: "来店/注文ごとに1pt、10ptでドリンク無料"
+    - 保存場所: ["端末ローカル", "サーバ同期"]
+
+  accessibility:
+    - Dynamic Type
+    - VoiceOverラベル
+    - コントラスト確保
+    - 辛さは🌶数＋テキスト併記
+    - アレルゲン強調表示
+
+  testing:
+    unit: ["料金計算", "オプション反映", "予約バリデーション"]
+    ui: ["Snapshotテスト (iPhone SE～Pro Max)", "Dark/Light"]
+    ci: "xcodebuild test + GitHub Actions"
+
+  release:
+    app_icon: "パッタイをモチーフ"
+    privacy: ["位置情報利用理由", "連絡先利用理由", "通知理由"]
+    app_store_review: "ダミーアカウント & 予約テスト手順"
+
