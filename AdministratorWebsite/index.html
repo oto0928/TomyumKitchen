@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomyum Kitchen - 管理者ダッシュボード</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #dc2626;
+        }
+
+        .stat-card h3 {
+            color: #dc2626;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .stat-card .change {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        .change.positive {
+            color: #16a34a;
+        }
+
+        .change.negative {
+            color: #dc2626;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .card-header h2 {
+            color: #333;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .reservation-item, .order-item {
+            padding: 1rem;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            background: #fafafa;
+        }
+
+        .reservation-item:last-child, .order-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .customer-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status.requested {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.confirmed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status.pending {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status.preparing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.ready {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .item-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .item-details div {
+            margin-bottom: 0.25rem;
+        }
+
+        .item-details i {
+            width: 16px;
+            margin-right: 0.5rem;
+            color: #dc2626;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .refresh-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #b91c1c;
+        }
+
+        .refresh-btn i {
+            margin-right: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-utensils"></i> Tomyum Kitchen - 管理者ダッシュボード</h1>
+        <p>予約・注文管理システム</p>
+    </div>
+
+    <div class="container">
+        <!-- 統計情報 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>今日の予約</h3>
+                <div class="number" id="todayReservations">-</div>
+                <div class="change positive" id="todayReservationsChange">+0件</div>
+            </div>
+            <div class="stat-card">
+                <h3>今日の注文</h3>
+                <div class="number" id="todayOrders">-</div>
+                <div class="change positive" id="todayOrdersChange">+0件</div>
+            </div>
+            <div class="stat-card">
+                <h3>今月の売上</h3>
+                <div class="number" id="monthlyRevenue">-</div>
+                <div class="change positive" id="monthlyRevenueChange">+¥0</div>
+            </div>
+            <div class="stat-card">
+                <h3>アクティブ予約</h3>
+                <div class="number" id="activeReservations">-</div>
+                <div class="change" id="activeReservationsChange">0件</div>
+            </div>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div class="content-grid">
+            <!-- 予約一覧 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-calendar-alt"></i> 最新の予約</h2>
+                    <button class="refresh-btn" onclick="loadReservations()">
+                        <i class="fas fa-sync-alt"></i>更新
+                    </button>
+                </div>
+                <div class="card-body" id="reservationsList">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                        <div>予約データを読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 注文一覧 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-shopping-cart"></i> 最新の注文</h2>
+                    <button class="refresh-btn" onclick="loadOrders()">
+                        <i class="fas fa-sync-alt"></i>更新
+                    </button>
+                </div>
+                <div class="card-body" id="ordersList">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                        <div>注文データを読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, orderBy, limit, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase設定（実際のプロジェクト設定）
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnxcVvjWVJB9lTR1ZI7QnhtVr6sGqM2jI",
+            authDomain: "tomyumkitchen-61a11.firebaseapp.com",
+            projectId: "tomyumkitchen-61a11",
+            storageBucket: "tomyumkitchen-61a11.firebasestorage.app",
+            messagingSenderId: "329516809259",
+            appId: "1:329516809259:web:admin-dashboard"
+        };
+
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // グローバル関数として定義
+        window.loadReservations = async function() {
+            try {
+                console.log('予約データの読み込みを開始...');
+                const reservationsRef = collection(db, 'reservations');
+                const q = query(reservationsRef, orderBy('createdAt', 'desc'), limit(10));
+                const snapshot = await getDocs(q);
+                
+                console.log('予約データの取得結果:', snapshot.size, '件');
+                snapshot.forEach(doc => {
+                    console.log('予約データ:', doc.id, doc.data());
+                });
+                
+                const reservationsList = document.getElementById('reservationsList');
+                
+                if (snapshot.empty) {
+                    reservationsList.innerHTML = '<div class="no-data">予約データがありません</div>';
+                    return;
+                }
+
+                let html = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const date = new Date(data.date.seconds * 1000);
+                    const createdAt = new Date(data.createdAt.seconds * 1000);
+                    
+                    html += `
+                        <div class="reservation-item">
+                            <div class="item-header">
+                                <span class="customer-name">${data.customerName}</span>
+                                <span class="status ${data.status}">${getStatusText(data.status)}</span>
+                            </div>
+                            <div class="item-details">
+                                <div><i class="fas fa-phone"></i> ${data.phone}</div>
+                                <div><i class="fas fa-envelope"></i> ${data.email}</div>
+                                <div><i class="fas fa-users"></i> ${data.partySize}名</div>
+                                <div><i class="fas fa-calendar"></i> ${date.toLocaleDateString('ja-JP')}</div>
+                                <div><i class="fas fa-clock"></i> ${data.timeSlot}</div>
+                                ${data.specialRequests ? `<div><i class="fas fa-comment"></i> ${data.specialRequests}</div>` : ''}
+                                <div><i class="fas fa-clock"></i> 予約日時: ${createdAt.toLocaleString('ja-JP')}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                reservationsList.innerHTML = html;
+                updateStats();
+            } catch (error) {
+                console.error('予約データの読み込みエラー:', error);
+                console.error('エラーの詳細:', error.message);
+                document.getElementById('reservationsList').innerHTML = '<div class="no-data">データの読み込みに失敗しました<br>コンソールでエラーを確認してください</div>';
+            }
+        };
+
+        window.loadOrders = async function() {
+            try {
+                console.log('注文データの読み込みを開始...');
+                const ordersRef = collection(db, 'orders');
+                const q = query(ordersRef, orderBy('createdAt', 'desc'), limit(10));
+                const snapshot = await getDocs(q);
+                
+                console.log('注文データの取得結果:', snapshot.size, '件');
+                snapshot.forEach(doc => {
+                    console.log('注文データ:', doc.id, doc.data());
+                });
+                
+                const ordersList = document.getElementById('ordersList');
+                
+                if (snapshot.empty) {
+                    ordersList.innerHTML = '<div class="no-data">注文データがありません</div>';
+                    return;
+                }
+
+                let html = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const createdAt = new Date(data.createdAt.seconds * 1000);
+                    
+                    html += `
+                        <div class="order-item">
+                            <div class="item-header">
+                                <span class="customer-name">${data.customerInfo.name}</span>
+                                <span class="status ${data.status}">${getOrderStatusText(data.status)}</span>
+                            </div>
+                            <div class="item-details">
+                                <div><i class="fas fa-phone"></i> ${data.customerInfo.phone}</div>
+                                <div><i class="fas fa-envelope"></i> ${data.customerInfo.email}</div>
+                                <div><i class="fas fa-map-marker-alt"></i> ${data.customerInfo.address}</div>
+                                <div><i class="fas fa-shopping-basket"></i> ${data.items.length}品目</div>
+                                <div><i class="fas fa-yen-sign"></i> ¥${data.total.toLocaleString()}</div>
+                                <div><i class="fas fa-truck"></i> ${data.deliveryTime}</div>
+                                ${data.deliveryInstructions ? `<div><i class="fas fa-comment"></i> ${data.deliveryInstructions}</div>` : ''}
+                                <div><i class="fas fa-clock"></i> 注文日時: ${createdAt.toLocaleString('ja-JP')}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                ordersList.innerHTML = html;
+                updateStats();
+            } catch (error) {
+                console.error('注文データの読み込みエラー:', error);
+                console.error('エラーの詳細:', error.message);
+                document.getElementById('ordersList').innerHTML = '<div class="no-data">データの読み込みに失敗しました<br>コンソールでエラーを確認してください</div>';
+            }
+        };
+
+        function getStatusText(status) {
+            const statusMap = {
+                'requested': '予約申請中',
+                'confirmed': '予約確定',
+                'cancelled': 'キャンセル',
+                'completed': '完了'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getOrderStatusText(status) {
+            const statusMap = {
+                'pending': '注文受付中',
+                'preparing': '調理中',
+                'ready': '準備完了',
+                'delivering': '配送中',
+                'delivered': '配送完了',
+                'cancelled': 'キャンセル'
+            };
+            return statusMap[status] || status;
+        }
+
+        async function updateStats() {
+            try {
+                // 今日の予約数
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+
+                const reservationsRef = collection(db, 'reservations');
+                const todayReservationsQuery = query(
+                    reservationsRef,
+                    where('date', '>=', today),
+                    where('date', '<', tomorrow)
+                );
+                const todayReservationsSnapshot = await getDocs(todayReservationsQuery);
+                document.getElementById('todayReservations').textContent = todayReservationsSnapshot.size;
+
+                // 今日の注文数
+                const ordersRef = collection(db, 'orders');
+                const todayOrdersQuery = query(
+                    ordersRef,
+                    where('createdAt', '>=', today),
+                    where('createdAt', '<', tomorrow)
+                );
+                const todayOrdersSnapshot = await getDocs(todayOrdersQuery);
+                document.getElementById('todayOrders').textContent = todayOrdersSnapshot.size;
+
+                // 今月の売上
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+                
+                const monthlyOrdersQuery = query(
+                    ordersRef,
+                    where('createdAt', '>=', monthStart),
+                    where('createdAt', '<', monthEnd)
+                );
+                const monthlyOrdersSnapshot = await getDocs(monthlyOrdersQuery);
+                
+                let monthlyRevenue = 0;
+                monthlyOrdersSnapshot.forEach(doc => {
+                    monthlyRevenue += doc.data().total;
+                });
+                document.getElementById('monthlyRevenue').textContent = '¥' + monthlyRevenue.toLocaleString();
+
+                // アクティブ予約数
+                const activeReservationsQuery = query(
+                    reservationsRef,
+                    where('status', 'in', ['requested', 'confirmed'])
+                );
+                const activeReservationsSnapshot = await getDocs(activeReservationsQuery);
+                document.getElementById('activeReservations').textContent = activeReservationsSnapshot.size;
+
+            } catch (error) {
+                console.error('統計データの更新エラー:', error);
+            }
+        }
+
+        // ページ読み込み時にデータを取得
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('管理者ダッシュボードが読み込まれました');
+            console.log('Firebase設定:', firebaseConfig);
+            
+            loadReservations();
+            loadOrders();
+            
+            // 30秒ごとに自動更新
+            setInterval(() => {
+                console.log('自動更新実行中...');
+                loadReservations();
+                loadOrders();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

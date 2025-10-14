@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase接続テスト - Tomyum Kitchen</title>
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #b91c1c;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #dc2626;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            border-left-color: #dc2626;
+            background: #fee2e2;
+        }
+        .success {
+            border-left-color: #16a34a;
+            background: #d1fae5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 Firebase接続テスト</h1>
+    
+    <div class="test-section">
+        <h2>1. Firebase初期化テスト</h2>
+        <button class="test-button" onclick="testFirebaseInit()">Firebase初期化をテスト</button>
+        <div id="initResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Firestore接続テスト</h2>
+        <button class="test-button" onclick="testFirestoreConnection()">Firestore接続をテスト</button>
+        <div id="firestoreResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 予約データ読み込みテスト</h2>
+        <button class="test-button" onclick="testReservations()">予約データを読み込み</button>
+        <div id="reservationsResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. 注文データ読み込みテスト</h2>
+        <button class="test-button" onclick="testOrders()">注文データを読み込み</button>
+        <div id="ordersResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Firestoreルールテスト</h2>
+        <button class="test-button" onclick="testFirestoreRules()">ルールをテスト</button>
+        <div id="rulesResult" class="result"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, orderBy, limit, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnxcVvjWVJB9lTR1ZI7QnhtVr6sGqM2jI",
+            authDomain: "tomyumkitchen-61a11.firebaseapp.com",
+            projectId: "tomyumkitchen-61a11",
+            storageBucket: "tomyumkitchen-61a11.firebasestorage.app",
+            messagingSenderId: "329516809259",
+            appId: "1:329516809259:web:admin-dashboard"
+        };
+
+        let app = null;
+        let db = null;
+
+        window.testFirebaseInit = async function() {
+            const resultDiv = document.getElementById('initResult');
+            try {
+                resultDiv.textContent = 'Firebase初期化中...';
+                resultDiv.className = 'result';
+                
+                app = initializeApp(firebaseConfig);
+                resultDiv.textContent = '✅ Firebase初期化成功！\n' + JSON.stringify(firebaseConfig, null, 2);
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ Firebase初期化失敗\n' + error.message;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testFirestoreConnection = async function() {
+            const resultDiv = document.getElementById('firestoreResult');
+            try {
+                resultDiv.textContent = 'Firestore接続中...';
+                resultDiv.className = 'result';
+                
+                if (!app) {
+                    app = initializeApp(firebaseConfig);
+                }
+                
+                db = getFirestore(app);
+                resultDiv.textContent = '✅ Firestore接続成功！\nデータベース: ' + db.app.name;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ Firestore接続失敗\n' + error.message;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testReservations = async function() {
+            const resultDiv = document.getElementById('reservationsResult');
+            try {
+                resultDiv.textContent = '予約データ読み込み中...';
+                resultDiv.className = 'result';
+                
+                if (!db) {
+                    if (!app) app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                }
+                
+                const reservationsRef = collection(db, 'reservations');
+                const q = query(reservationsRef, orderBy('createdAt', 'desc'), limit(5));
+                const snapshot = await getDocs(q);
+                
+                let result = `✅ 予約データ読み込み成功！\n取得件数: ${snapshot.size}件\n\n`;
+                
+                if (snapshot.empty) {
+                    result += '⚠️ 予約データがありません\n';
+                    result += 'シミュレーターで予約を作成してから再テストしてください';
+                } else {
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        result += `ID: ${doc.id}\n`;
+                        result += `顧客名: ${data.customerName}\n`;
+                        result += `電話: ${data.phone}\n`;
+                        result += `日時: ${new Date(data.date.seconds * 1000).toLocaleString('ja-JP')}\n`;
+                        result += `ステータス: ${data.status}\n`;
+                        result += `作成日: ${new Date(data.createdAt.seconds * 1000).toLocaleString('ja-JP')}\n\n`;
+                    });
+                }
+                
+                resultDiv.textContent = result;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ 予約データ読み込み失敗\n' + error.message + '\n\n' + error.stack;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testOrders = async function() {
+            const resultDiv = document.getElementById('ordersResult');
+            try {
+                resultDiv.textContent = '注文データ読み込み中...';
+                resultDiv.className = 'result';
+                
+                if (!db) {
+                    if (!app) app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                }
+                
+                const ordersRef = collection(db, 'orders');
+                const q = query(ordersRef, orderBy('createdAt', 'desc'), limit(5));
+                const snapshot = await getDocs(q);
+                
+                let result = `✅ 注文データ読み込み成功！\n取得件数: ${snapshot.size}件\n\n`;
+                
+                if (snapshot.empty) {
+                    result += '⚠️ 注文データがありません\n';
+                    result += 'シミュレーターで注文を作成してから再テストしてください';
+                } else {
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        result += `ID: ${doc.id}\n`;
+                        result += `顧客名: ${data.customerInfo.name}\n`;
+                        result += `電話: ${data.customerInfo.phone}\n`;
+                        result += `金額: ¥${data.total.toLocaleString()}\n`;
+                        result += `ステータス: ${data.status}\n`;
+                        result += `作成日: ${new Date(data.createdAt.seconds * 1000).toLocaleString('ja-JP')}\n\n`;
+                    });
+                }
+                
+                resultDiv.textContent = result;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ 注文データ読み込み失敗\n' + error.message + '\n\n' + error.stack;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        window.testFirestoreRules = async function() {
+            const resultDiv = document.getElementById('rulesResult');
+            try {
+                resultDiv.textContent = 'Firestoreルールテスト中...';
+                resultDiv.className = 'result';
+                
+                if (!db) {
+                    if (!app) app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                }
+                
+                // テスト用のドキュメントを作成してルールをテスト
+                const testRef = doc(db, 'test', 'rule-test');
+                
+                try {
+                    await getDoc(testRef);
+                    resultDiv.textContent = '✅ Firestoreルールテスト成功！\n読み取り権限があります\n\n推奨ルール:\n' +
+                        'rules_version = \'2\';\n' +
+                        'service cloud.firestore {\n' +
+                        '  match /databases/{database}/documents {\n' +
+                        '    match /{document=**} {\n' +
+                        '      allow read: if true;\n' +
+                        '    }\n' +
+                        '  }\n' +
+                        '}';
+                    resultDiv.className = 'result success';
+                } catch (error) {
+                    resultDiv.textContent = '❌ Firestoreルールエラー\n' + error.message + '\n\nFirebase Consoleでルールを確認してください';
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = '❌ Firestoreルールテスト失敗\n' + error.message;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // ページ読み込み時に自動テスト
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Firebase接続テストページが読み込まれました');
+            setTimeout(() => {
+                testFirebaseInit();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

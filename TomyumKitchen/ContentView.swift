@@ -6,6 +6,43 @@
 //
 
 import SwiftUI
+import Firebase
+import FirebaseFirestore
+
+// MARK: - Cart Manager
+class CartManager: ObservableObject {
+    @Published var cartItems: [(dish: Dish, quantity: Int)] = []
+    
+    func addToCart(dish: Dish, quantity: Int = 1) {
+        if let index = cartItems.firstIndex(where: { $0.dish.id == dish.id }) {
+            cartItems[index].quantity += quantity
+        } else {
+            cartItems.append((dish: dish, quantity: quantity))
+        }
+    }
+    
+    func removeFromCart(dish: Dish) {
+        cartItems.removeAll { $0.dish.id == dish.id }
+    }
+    
+    func updateQuantity(dish: Dish, quantity: Int) {
+        if let index = cartItems.firstIndex(where: { $0.dish.id == dish.id }) {
+            if quantity > 0 {
+                cartItems[index].quantity = quantity
+            } else {
+                cartItems.remove(at: index)
+            }
+        }
+    }
+    
+    var subtotal: Int {
+        cartItems.reduce(0) { $0 + ($1.dish.price * $1.quantity) }
+    }
+    
+    var totalItems: Int {
+        cartItems.reduce(0) { $0 + $1.quantity }
+    }
+}
 
 // MARK: - Design System
 struct DesignSystem {
@@ -40,21 +77,41 @@ struct Dish: Identifiable, Hashable {
     let id = UUID()
     let name: String
     let description: String
+    let detailedDescription: String
     let price: Int
     let imageName: String
     let spicyLevel: Int
     let isVegetarian: Bool
     let allergens: [String]
     let category: String
+    let calories: Int
+    let cookingTime: String
+    let ingredients: [String]
+    let nutritionInfo: NutritionInfo
+    
+    struct NutritionInfo: Hashable, Equatable, Codable {
+        let protein: String
+        let fat: String
+        let carbs: String
+        let sodium: String
+    }
 }
 
-struct Category: Identifiable {
+// MARK: - Codable Extensions
+extension Dish: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, price, imageName, spicyLevel, allergens, isVegetarian, category
+        case detailedDescription, calories, cookingTime, ingredients, nutritionInfo
+    }
+}
+
+struct Category: Identifiable, Codable {
     let id = UUID()
     let name: String
     let icon: String
 }
 
-struct Coupon: Identifiable, Hashable {
+struct Coupon: Identifiable, Hashable, Codable {
     let id = UUID()
     let title: String
     let description: String
@@ -65,10 +122,10 @@ struct Coupon: Identifiable, Hashable {
     let isUsed: Bool
     let code: String
     
-    enum DiscountType {
-        case percentage // パーセント割引
-        case fixedAmount // 固定額割引
-        case freeShipping // 送料無料
+    enum DiscountType: String, Codable {
+        case percentage = "percentage" // パーセント割引
+        case fixedAmount = "fixedAmount" // 固定額割引
+        case freeShipping = "freeShipping" // 送料無料
     }
     
     var isExpired: Bool {
@@ -94,21 +151,133 @@ struct Coupon: Identifiable, Hashable {
 // MARK: - Sample Data
 extension Dish {
     static let sampleDishes = [
-        Dish(name: "トムヤムクン", description: "エビの旨味たっぷりの酸辣スープ", price: 1200, imageName: "トムヤムクン", spicyLevel: 3, isVegetarian: false, allergens: ["エビ"], category: "スープ"),
-        Dish(name: "グリーンカレー", description: "ココナッツミルクの甘さと青唐辛子の辛さが絶妙", price: 1400, imageName: "グリーンカレー", spicyLevel: 4, isVegetarian: false, allergens: [], category: "カレー"),
-        Dish(name: "パッタイ", description: "タイ風焼きそば、甘酸っぱいタマリンドソース", price: 1100, imageName: "パッタイ", spicyLevel: 2, isVegetarian: false, allergens: ["卵"], category: "麺"),
-        Dish(name: "ガパオライス", description: "バジル炒めご飯、目玉焼きトッピング", price: 1000, imageName: "ガパオライス", spicyLevel: 3, isVegetarian: false, allergens: ["卵"], category: "ご飯"),
-        Dish(name: "生春巻き", description: "新鮮な野菜とエビの生春巻き", price: 800, imageName: "生春巻き", spicyLevel: 0, isVegetarian: false, allergens: ["エビ"], category: "前菜"),
-        Dish(name: "ソムタム", description: "青パパイヤのサラダ、爽やかな酸味", price: 900, imageName: "ソムタム", spicyLevel: 3, isVegetarian: true, allergens: [], category: "サラダ"),
-        Dish(name: "カオマンガイ", description: "茹で鶏とジャスミンライス", price: 1300, imageName: "カオマンガイ", spicyLevel: 1, isVegetarian: false, allergens: [], category: "ご飯"),
-        Dish(name: "ココナッツミルクアイス", description: "濃厚なココナッツの風味", price: 500, imageName: "ココナッツミルクアイス", spicyLevel: 0, isVegetarian: true, allergens: [], category: "デザート")
+        Dish(
+            name: "トムヤムクン",
+            description: "エビの旨味たっぷりの酸辣スープ",
+            detailedDescription: "新鮮なエビとマッシュルーム、トマトを使用した本格的なタイの酸辣スープです。レモングラス、カフィアライムリーフ、ガランガルなどのハーブが香り豊かで、酸味と辛味のバランスが絶妙です。",
+            price: 1200,
+            imageName: "トムヤムクン",
+            spicyLevel: 3,
+            isVegetarian: false,
+            allergens: ["エビ", "魚醤"],
+            category: "スープ",
+            calories: 180,
+            cookingTime: "15分",
+            ingredients: ["エビ", "マッシュルーム", "トマト", "レモングラス", "カフィアライムリーフ", "ガランガル", "唐辛子", "ライム汁", "魚醤"],
+            nutritionInfo: NutritionInfo(protein: "12g", fat: "8g", carbs: "15g", sodium: "1200mg")
+        ),
+        Dish(
+            name: "グリーンカレー",
+            description: "ココナッツミルクの甘さと青唐辛子の辛さが絶妙",
+            detailedDescription: "タイ料理の代表格、濃厚なココナッツミルクベースのカレーです。青唐辛子、バジル、ガランガルなどの香辛料を使用し、鶏肉とナスが入っています。辛さの中にもまろやかさがあり、ジャスミンライスとの相性は抜群です。",
+            price: 1400,
+            imageName: "グリーンカレー",
+            spicyLevel: 4,
+            isVegetarian: false,
+            allergens: ["乳製品"],
+            category: "カレー",
+            calories: 420,
+            cookingTime: "25分",
+            ingredients: ["鶏肉", "ココナッツミルク", "青唐辛子", "バジル", "ナス", "ガランガル", "レモングラス", "魚醤", "パームシュガー"],
+            nutritionInfo: NutritionInfo(protein: "25g", fat: "32g", carbs: "18g", sodium: "980mg")
+        ),
+        Dish(
+            name: "パッタイ",
+            description: "タイ風焼きそば、甘酸っぱいタマリンドソース",
+            detailedDescription: "タイの国民的料理として愛される米粉麺の炒め物です。タマリンドの酸味、パームシュガーの甘味、魚醤の旨味が絶妙にブレンドされたソースで炒めた麺に、エビ、豆腐、もやし、ニラが入り、ピーナッツとライムで仕上げます。",
+            price: 1100,
+            imageName: "パッタイ",
+            spicyLevel: 2,
+            isVegetarian: false,
+            allergens: ["卵", "エビ", "ピーナッツ", "魚醤"],
+            category: "麺",
+            calories: 380,
+            cookingTime: "12分",
+            ingredients: ["米粉麺", "エビ", "卵", "豆腐", "もやし", "ニラ", "タマリンド", "パームシュガー", "魚醤", "ピーナッツ", "ライム"],
+            nutritionInfo: NutritionInfo(protein: "18g", fat: "15g", carbs: "45g", sodium: "1100mg")
+        ),
+        Dish(
+            name: "ガパオライス",
+            description: "バジル炒めご飯、目玉焼きトッピング",
+            detailedDescription: "タイのホーリーバジル（ガパオ）を使った香り高い炒めご飯です。豚ひき肉を唐辛子とニンニクで炒め、ガパオの葉を加えて仕上げます。上にのせた半熟の目玉焼きを崩して食べるのが本場スタイル。スパイシーで食欲をそそる一品です。",
+            price: 1000,
+            imageName: "ガパオライス",
+            spicyLevel: 3,
+            isVegetarian: false,
+            allergens: ["卵", "魚醤"],
+            category: "ご飯",
+            calories: 520,
+            cookingTime: "10分",
+            ingredients: ["豚ひき肉", "ガパオ（ホーリーバジル）", "ジャスミンライス", "卵", "唐辛子", "ニンニク", "玉ねぎ", "魚醤", "オイスターソース", "砂糖"],
+            nutritionInfo: NutritionInfo(protein: "28g", fat: "22g", carbs: "58g", sodium: "1350mg")
+        ),
+        Dish(
+            name: "生春巻き",
+            description: "新鮮な野菜とエビの生春巻き",
+            detailedDescription: "透明なライスペーパーで包んだヘルシーな前菜です。新鮮なレタス、キュウリ、人参、香草と茹でエビを包み、甘酸っぱいスイートチリソースでお召し上がりください。さっぱりとした味わいで、食事の始まりにぴったりです。",
+            price: 800,
+            imageName: "生春巻き",
+            spicyLevel: 0,
+            isVegetarian: false,
+            allergens: ["エビ"],
+            category: "前菜",
+            calories: 120,
+            cookingTime: "8分",
+            ingredients: ["エビ", "ライスペーパー", "レタス", "キュウリ", "人参", "パクチー", "ミント", "スイートチリソース"],
+            nutritionInfo: NutritionInfo(protein: "8g", fat: "2g", carbs: "20g", sodium: "450mg")
+        ),
+        Dish(
+            name: "ソムタム",
+            description: "青パパイヤのサラダ、爽やかな酸味",
+            detailedDescription: "タイ東北部イサーン地方の代表的なサラダです。千切りにした青パパイヤを、ライム汁、魚醤、パームシュガー、唐辛子で和えた爽やかな一品。トマト、いんげん、ピーナッツが加わり、酸味と辛味、甘味のバランスが絶妙です。",
+            price: 900,
+            imageName: "ソムタム",
+            spicyLevel: 3,
+            isVegetarian: true,
+            allergens: ["ピーナッツ"],
+            category: "サラダ",
+            calories: 150,
+            cookingTime: "10分",
+            ingredients: ["青パパイヤ", "トマト", "いんげん", "ピーナッツ", "ライム汁", "パームシュガー", "唐辛子", "ニンニク"],
+            nutritionInfo: NutritionInfo(protein: "4g", fat: "6g", carbs: "25g", sodium: "680mg")
+        ),
+        Dish(
+            name: "カオマンガイ",
+            description: "茹で鶏とジャスミンライス",
+            detailedDescription: "シンガポールチキンライスのタイ版として親しまれている庶民料理です。鶏の出汁で炊いたジャスミンライスの上に、しっとりと茹でた鶏肉をのせ、生姜とニンニクの効いた特製ソースでお召し上がりください。シンプルながら奥深い味わいです。",
+            price: 1300,
+            imageName: "カオマンガイ",
+            spicyLevel: 1,
+            isVegetarian: false,
+            allergens: ["大豆"],
+            category: "ご飯",
+            calories: 480,
+            cookingTime: "45分",
+            ingredients: ["鶏もも肉", "ジャスミンライス", "生姜", "ニンニク", "パクチー", "キュウリ", "大豆ソース", "オイスターソース", "ごま油"],
+            nutritionInfo: NutritionInfo(protein: "35g", fat: "18g", carbs: "52g", sodium: "920mg")
+        ),
+        Dish(
+            name: "ココナッツミルクアイス",
+            description: "濃厚なココナッツの風味",
+            detailedDescription: "新鮮なココナッツミルクを使用した手作りアイスクリームです。トロピカルな甘さと滑らかな舌触りが特徴で、タイの伝統的なデザートとして愛されています。パンダンリーフの香りがほのかに香り、食後のデザートに最適です。",
+            price: 500,
+            imageName: "ココナッツミルクアイス",
+            spicyLevel: 0,
+            isVegetarian: true,
+            allergens: ["乳製品"],
+            category: "デザート",
+            calories: 220,
+            cookingTime: "5分（冷凍時間除く）",
+            ingredients: ["ココナッツミルク", "砂糖", "パンダンリーフ", "塩", "コーンスターチ"],
+            nutritionInfo: NutritionInfo(protein: "3g", fat: "18g", carbs: "22g", sodium: "45mg")
+        )
     ]
 }
 
-struct Reservation: Identifiable {
+struct Reservation: Identifiable, Codable {
     let id = UUID()
     let customerName: String
-    let phoneNumber: String
+    let phone: String
     let email: String
     let partySize: Int
     let date: Date
@@ -117,7 +286,7 @@ struct Reservation: Identifiable {
     let status: ReservationStatus
     let createdAt: Date
     
-    enum TimeSlot: String, CaseIterable {
+    enum TimeSlot: String, CaseIterable, Codable {
         case lunch1130 = "11:30"
         case lunch1200 = "12:00"
         case lunch1230 = "12:30"
@@ -141,38 +310,41 @@ struct Reservation: Identifiable {
         }
     }
     
-    enum ReservationStatus: String {
-        case pending = "確認中"
-        case confirmed = "確定"
-        case cancelled = "キャンセル"
-        case completed = "完了"
+    enum ReservationStatus: String, Codable {
+        case requested = "requested"
+        case confirmed = "confirmed"
+        case cancelled = "cancelled"
+        case completed = "completed"
     }
 }
 
-struct Order: Identifiable {
+struct OrderItem: Codable {
+    let dish: Dish
+    let quantity: Int
+    let selectedOptions: [String: String]
+}
+
+struct CustomerInfo: Codable {
+    let name: String
+    let phone: String
+    let email: String
+    let address: String
+}
+
+struct Order: Identifiable, Codable {
     let id = UUID()
-    let items: [(dish: Dish, quantity: Int, customizations: [String: Any])]
+    let customerInfo: CustomerInfo
+    let items: [OrderItem]
     let subtotal: Int
     let discount: Int
-    let deliveryFee: Int
     let total: Int
-    let customerInfo: CustomerInfo
-    let deliveryTime: DeliveryTime
-    let appliedCoupon: Coupon?
     let status: OrderStatus
+    let deliveryTime: DeliveryTime
+    let deliveryInstructions: String
     let createdAt: Date
-    let estimatedDelivery: Date
     
-    struct CustomerInfo {
-        let name: String
-        let phoneNumber: String
-        let email: String
-        let address: String
-        let deliveryInstructions: String
-    }
-    
-    enum DeliveryTime: String, CaseIterable {
-        case asap = "できるだけ早く"
+    enum DeliveryTime: String, CaseIterable, Codable {
+        case asap = "asap"
         case time1 = "30分後"
         case time2 = "1時間後"
         case time3 = "1時間30分後"
@@ -189,13 +361,13 @@ struct Order: Identifiable {
         }
     }
     
-    enum OrderStatus: String {
-        case placed = "注文受付"
-        case preparing = "調理中"
-        case ready = "配達準備完了"
-        case delivering = "配達中"
-        case delivered = "配達完了"
-        case cancelled = "キャンセル"
+    enum OrderStatus: String, Codable {
+        case pending = "pending"
+        case preparing = "preparing"
+        case ready = "ready"
+        case delivering = "delivering"
+        case delivered = "delivered"
+        case cancelled = "cancelled"
     }
 }
 
@@ -275,7 +447,6 @@ struct SpicyIndicator: View {
 struct DishCard: View {
     let dish: Dish
     let size: CGSize
-    @State private var isPressed = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.spacing.s) {
@@ -318,23 +489,13 @@ struct DishCard: View {
         .background(Color.white)
         .cornerRadius(DesignSystem.cornerRadius.card)
         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: isPressed)
-        .onTapGesture {
-            withAnimation {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation {
-                    isPressed = false
-                }
-            }
-        }
     }
 }
 
 struct AsymmetricGrid: View {
     let dishes: [Dish]
+    let isLoading: Bool
+    @EnvironmentObject var cartManager: CartManager
     let columns = [
         GridItem(.flexible(), spacing: DesignSystem.spacing.m),
         GridItem(.flexible(), spacing: DesignSystem.spacing.m)
@@ -349,10 +510,11 @@ struct AsymmetricGrid: View {
                     height: isLarge ? 240 : 200
                 )
                 
-                NavigationLink(destination: DishDetailView(dish: dish)) {
+                NavigationLink(destination: DishDetailView(dish: dish).environmentObject(cartManager)) {
                     DishCard(dish: dish, size: cardSize)
                         .offset(y: index % 2 == 0 ? 0 : 20)
                 }
+                .buttonStyle(PlainButtonStyle())
             }
         }
         .padding(.horizontal, DesignSystem.spacing.l)
@@ -376,8 +538,8 @@ struct HeroSection: View {
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
-                    withAnimation(.easeInOut(duration: 1.0)) {
+                Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { timer in
+                    withAnimation(.easeInOut(duration: 0.8)) {
                         currentImageIndex = (currentImageIndex + 1) % storeImages.count
                     }
                 }
@@ -406,7 +568,7 @@ struct HeroSection: View {
                 }
                 
                 HStack(spacing: DesignSystem.spacing.l) {
-                    NavigationLink(destination: MenuView()) {
+                    Button(action: {}) {
                         HStack {
                             Image(systemName: "menucard.fill")
                             Text("メニュー")
@@ -441,12 +603,51 @@ struct HeroSection: View {
 
 // MARK: - Main Views
 struct HomeView: View {
-    let featuredDishes = Array(Dish.sampleDishes.prefix(6))
+    let dishes: [Dish]
+    let isLoading: Bool
+    
+    var featuredDishes: [Dish] {
+        Array(dishes.prefix(6))
+    }
     
     var body: some View {
         ScrollView {
             VStack(spacing: DesignSystem.spacing.xxl) {
-                HeroSection()
+                ZStack {
+                    HeroSection()
+                    
+                    // Navigation Links overlay
+                    VStack {
+                        Spacer()
+                        
+                        HStack(spacing: DesignSystem.spacing.l) {
+                            NavigationLink(destination: MenuView(dishes: dishes, isLoading: isLoading)) {
+                                HStack {
+                                    Image(systemName: "menucard.fill")
+                                    Text("メニュー")
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, DesignSystem.spacing.xl)
+                                .padding(.vertical, DesignSystem.spacing.m)
+                                .background(DesignSystem.primaryRed)
+                                .cornerRadius(DesignSystem.cornerRadius.button)
+                            }
+                            
+                            NavigationLink(destination: ReservationView()) {
+                                HStack {
+                                    Image(systemName: "calendar")
+                                    Text("予約")
+                                }
+                                .foregroundColor(DesignSystem.primaryRed)
+                                .padding(.horizontal, DesignSystem.spacing.xl)
+                                .padding(.vertical, DesignSystem.spacing.m)
+                                .background(.white)
+                                .cornerRadius(DesignSystem.cornerRadius.button)
+                            }
+                        }
+                        .padding(.bottom, DesignSystem.spacing.xl)
+                    }
+                }
                 
                 VStack(alignment: .leading, spacing: DesignSystem.spacing.l) {
                     HStack {
@@ -457,15 +658,16 @@ struct HomeView: View {
                         
                         Spacer()
                         
-                        NavigationLink("すべて見る", destination: MenuView())
+                        NavigationLink("すべて見る", destination: MenuView(dishes: self.dishes, isLoading: self.isLoading))
                             .font(.subheadline)
                             .foregroundColor(DesignSystem.primaryRed)
                     }
                     .padding(.horizontal, DesignSystem.spacing.l)
                     
-                    AsymmetricGrid(dishes: featuredDishes)
+                    AsymmetricGrid(dishes: featuredDishes, isLoading: isLoading)
                 }
             }
+            .padding(.bottom, 100) // タブバーとの余白を確保
         }
         .background(DesignSystem.background)
         .navigationBarHidden(true)
@@ -473,14 +675,16 @@ struct HomeView: View {
 }
 
 struct MenuView: View {
+    let dishes: [Dish]
+    let isLoading: Bool
     @State private var selectedCategory = "すべて"
     let categories = ["すべて", "カレー", "麺", "ご飯", "前菜", "サラダ", "デザート"]
     
     var filteredDishes: [Dish] {
         if selectedCategory == "すべて" {
-            return Dish.sampleDishes
+            return dishes
         }
-        return Dish.sampleDishes.filter { $0.category == selectedCategory }
+        return dishes.filter { $0.category == selectedCategory }
     }
     
     var body: some View {
@@ -517,8 +721,8 @@ struct MenuView: View {
             
             // Menu Grid
             ScrollView {
-                AsymmetricGrid(dishes: filteredDishes)
-                    .padding(.bottom, DesignSystem.spacing.xxl)
+                AsymmetricGrid(dishes: filteredDishes, isLoading: isLoading)
+                    .padding(.bottom, 120) // タブバーとの余白を確保
             }
         }
         .background(DesignSystem.background)
@@ -534,6 +738,7 @@ struct DishDetailView: View {
     @State private var includeCilantro = true
     @State private var riceSize = "普通"
     @State private var showingAddedToCart = false
+    @EnvironmentObject var cartManager: CartManager
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
@@ -580,10 +785,108 @@ struct DishDetailView: View {
                     }
                     
                     // Description
-                    Text(dish.description)
+                    Text(dish.detailedDescription)
                         .font(.body)
                         .foregroundColor(DesignSystem.textSecondary)
                         .lineSpacing(4)
+                    
+                    // Nutrition & Info Cards
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: DesignSystem.spacing.m) {
+                        // Calories Card
+                        VStack(spacing: DesignSystem.spacing.xs) {
+                            Image(systemName: "flame.fill")
+                                .font(.title2)
+                                .foregroundColor(DesignSystem.gold)
+                            
+                            Text("\(dish.calories)")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(DesignSystem.textPrimary)
+                            
+                            Text("カロリー")
+                                .font(.caption)
+                                .foregroundColor(DesignSystem.textSecondary)
+                        }
+                        .padding(DesignSystem.spacing.m)
+                        .background(Color.white)
+                        .cornerRadius(DesignSystem.cornerRadius.card)
+                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        
+                        // Cooking Time Card
+                        VStack(spacing: DesignSystem.spacing.xs) {
+                            Image(systemName: "clock.fill")
+                                .font(.title2)
+                                .foregroundColor(DesignSystem.accent)
+                            
+                            Text(dish.cookingTime)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(DesignSystem.textPrimary)
+                            
+                            Text("調理時間")
+                                .font(.caption)
+                                .foregroundColor(DesignSystem.textSecondary)
+                        }
+                        .padding(DesignSystem.spacing.m)
+                        .background(Color.white)
+                        .cornerRadius(DesignSystem.cornerRadius.card)
+                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    }
+                    
+                    // Nutrition Information
+                    VStack(alignment: .leading, spacing: DesignSystem.spacing.m) {
+                        Text("栄養成分（1人前あたり）")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(DesignSystem.textPrimary)
+                        
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: DesignSystem.spacing.s) {
+                            NutritionItem(label: "タンパク質", value: dish.nutritionInfo.protein, color: DesignSystem.primaryRed)
+                            NutritionItem(label: "脂質", value: dish.nutritionInfo.fat, color: DesignSystem.gold)
+                            NutritionItem(label: "炭水化物", value: dish.nutritionInfo.carbs, color: DesignSystem.accent)
+                            NutritionItem(label: "塩分", value: dish.nutritionInfo.sodium, color: Color.purple)
+                        }
+                    }
+                    .padding(DesignSystem.spacing.l)
+                    .background(Color.white)
+                    .cornerRadius(DesignSystem.cornerRadius.card)
+                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    
+                    // Ingredients
+                    VStack(alignment: .leading, spacing: DesignSystem.spacing.m) {
+                        Text("主な材料")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(DesignSystem.textPrimary)
+                        
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: DesignSystem.spacing.s) {
+                            ForEach(dish.ingredients, id: \.self) { ingredient in
+                                Text(ingredient)
+                                    .font(.subheadline)
+                                    .foregroundColor(DesignSystem.textPrimary)
+                                    .padding(.horizontal, DesignSystem.spacing.s)
+                                    .padding(.vertical, DesignSystem.spacing.xs)
+                                    .background(DesignSystem.background)
+                                    .cornerRadius(DesignSystem.cornerRadius.pill)
+                            }
+                        }
+                    }
+                    .padding(DesignSystem.spacing.l)
+                    .background(Color.white)
+                    .cornerRadius(DesignSystem.cornerRadius.card)
+                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                     
                     // Allergens
                     if !dish.allergens.isEmpty {
@@ -726,16 +1029,20 @@ struct DishDetailView: View {
                     }
                 }
                 .padding(DesignSystem.spacing.l)
+                .padding(.bottom, 140) // CTAボタンとタブバーのスペース
             }
         }
         .background(DesignSystem.background)
         .navigationBarTitleDisplayMode(.inline)
         .overlay(
             // Fixed CTA Bar
-            VStack {
+        VStack {
                 Spacer()
                 
                 Button(action: {
+                    // カートに追加
+                    cartManager.addToCart(dish: dish, quantity: quantity)
+                    
                     withAnimation(.spring()) {
                         showingAddedToCart = true
                     }
@@ -781,8 +1088,8 @@ struct DishDetailView: View {
                             .foregroundColor(.green)
                         Text("カートに追加しました")
                             .fontWeight(.medium)
-                    }
-                    .padding()
+        }
+        .padding()
                     .background(.ultraThinMaterial)
                     .cornerRadius(DesignSystem.cornerRadius.card)
                     .transition(.move(edge: .top).combined(with: .opacity))
@@ -904,10 +1211,35 @@ struct StoreInfoView: View {
                 }
                 .padding(.horizontal, DesignSystem.spacing.l)
             }
+            .padding(.bottom, 120) // タブバーとの余白を確保
         }
         .background(DesignSystem.background)
         .navigationTitle("店舗情報")
         .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+struct NutritionItem: View {
+    let label: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.spacing.xs) {
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+            
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(DesignSystem.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, DesignSystem.spacing.s)
+        .frame(maxWidth: .infinity)
+        .background(color.opacity(0.1))
+        .cornerRadius(DesignSystem.cornerRadius.button)
     }
 }
 
@@ -1042,15 +1374,12 @@ struct CouponCard: View {
 }
 
 struct CartView: View {
-    @State private var cartItems = [
-        (dish: Dish.sampleDishes[0], quantity: 2),
-        (dish: Dish.sampleDishes[1], quantity: 1)
-    ]
+    @EnvironmentObject var cartManager: CartManager
     @State private var selectedCoupon: Coupon?
     @State private var showingCouponSelection = false
     
     var subtotal: Int {
-        cartItems.reduce(0) { $0 + ($1.dish.price * $1.quantity) }
+        cartManager.subtotal
     }
     
     var discount: Int {
@@ -1072,7 +1401,7 @@ struct CartView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if cartItems.isEmpty {
+            if cartManager.cartItems.isEmpty {
                 VStack(spacing: DesignSystem.spacing.xl) {
                     Spacer()
                     
@@ -1094,16 +1423,12 @@ struct CartView: View {
                 ScrollView {
                     VStack(spacing: DesignSystem.spacing.l) {
                         // Cart Items
-                        ForEach(Array(cartItems.enumerated()), id: \.offset) { index, item in
+                        ForEach(Array(cartManager.cartItems.enumerated()), id: \.offset) { index, item in
                             CartItemRow(
                                 dish: item.dish,
                                 quantity: item.quantity,
                                 onQuantityChange: { newQuantity in
-                                    if newQuantity > 0 {
-                                        cartItems[index].quantity = newQuantity
-                                    } else {
-                                        cartItems.remove(at: index)
-                                    }
+                                    cartManager.updateQuantity(dish: item.dish, quantity: newQuantity)
                                 }
                             )
                         }
@@ -1202,7 +1527,7 @@ struct CartView: View {
                         .cornerRadius(DesignSystem.cornerRadius.card)
                         .padding(.horizontal, DesignSystem.spacing.l)
                     }
-                    .padding(.bottom, 100) // CTAボタンのスペース
+                    .padding(.bottom, 140) // CTAボタンとタブバーのスペース
                 }
                 
                 // Fixed CTA
@@ -1210,7 +1535,7 @@ struct CartView: View {
                     Spacer()
                     
                     NavigationLink(destination: OrderConfirmationView(
-                        cartItems: cartItems,
+                        cartItems: cartManager.cartItems,
                         selectedCoupon: selectedCoupon,
                         subtotal: subtotal,
                         discount: discount,
@@ -1325,6 +1650,10 @@ struct CouponSelectionView: View {
                                 presentationMode.wrappedValue.dismiss()
                             }) {
                                 CouponCard(coupon: coupon)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: DesignSystem.cornerRadius.card)
+                                            .stroke(selectedCoupon?.id == coupon.id ? DesignSystem.primaryRed : Color.clear, lineWidth: 2)
+                                    )
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
@@ -1357,6 +1686,7 @@ struct OrderConfirmationView: View {
     let discount: Int
     let total: Int
     
+    @StateObject private var firebaseService = FirebaseService()
     @State private var customerName = ""
     @State private var phoneNumber = ""
     @State private var email = ""
@@ -1364,6 +1694,7 @@ struct OrderConfirmationView: View {
     @State private var deliveryInstructions = ""
     @State private var selectedDeliveryTime = Order.DeliveryTime.asap
     @State private var showingOrderComplete = false
+    @State private var isSubmitting = false
     
     var body: some View {
         ScrollView {
@@ -1487,7 +1818,7 @@ struct OrderConfirmationView: View {
                 .cornerRadius(DesignSystem.cornerRadius.card)
             }
             .padding(.horizontal, DesignSystem.spacing.l)
-            .padding(.bottom, 100)
+            .padding(.bottom, 140) // CTAボタンとタブバーのスペース
         }
         .background(DesignSystem.background)
         .navigationTitle("注文確認")
@@ -1497,8 +1828,7 @@ struct OrderConfirmationView: View {
                 Spacer()
                 
                 Button(action: {
-                    // 注文処理
-                    showingOrderComplete = true
+                    submitOrder()
                 }) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
@@ -1530,6 +1860,57 @@ struct OrderConfirmationView: View {
     
     var isFormValid: Bool {
         !customerName.isEmpty && !phoneNumber.isEmpty && !email.isEmpty && !address.isEmpty
+    }
+    
+    private func submitOrder() {
+        guard isFormValid && !isSubmitting else { return }
+        
+        isSubmitting = true
+        
+        let customerInfo = CustomerInfo(
+            name: customerName,
+            phone: phoneNumber,
+            email: email,
+            address: address
+        )
+        
+        let orderItems = cartItems.map { item in
+            OrderItem(
+                dish: item.dish,
+                quantity: item.quantity,
+                selectedOptions: [:] // カスタマイズオプションは将来実装
+            )
+        }
+        
+        let order = Order(
+            customerInfo: customerInfo,
+            items: orderItems,
+            subtotal: subtotal,
+            discount: discount,
+            total: total,
+            status: .pending,
+            deliveryTime: selectedDeliveryTime,
+            deliveryInstructions: deliveryInstructions,
+            createdAt: Date()
+        )
+        
+        Task {
+            do {
+                let orderId = try await firebaseService.createOrder(order)
+                print("Order created with ID: \(orderId)")
+                
+                await MainActor.run {
+                    showingOrderComplete = true
+                    isSubmitting = false
+                }
+            } catch {
+                print("Error creating order: \(error)")
+                await MainActor.run {
+                    isSubmitting = false
+                    // エラーハンドリング（アラート表示など）
+                }
+            }
+        }
     }
 }
 
@@ -1608,6 +1989,7 @@ struct OrderCompleteView: View {
 }
 
 struct ReservationView: View {
+    @StateObject private var firebaseService = FirebaseService()
     @State private var customerName = ""
     @State private var phoneNumber = ""
     @State private var email = ""
@@ -1616,6 +1998,7 @@ struct ReservationView: View {
     @State private var selectedTimeSlot = Reservation.TimeSlot.dinner1800
     @State private var specialRequests = ""
     @State private var showingReservationComplete = false
+    @State private var isSubmitting = false
     
     var availableTimeSlots: [Reservation.TimeSlot] {
         let calendar = Calendar.current
@@ -1801,7 +2184,7 @@ struct ReservationView: View {
                 .cornerRadius(DesignSystem.cornerRadius.card)
             }
             .padding(.horizontal, DesignSystem.spacing.l)
-            .padding(.bottom, 100)
+            .padding(.bottom, 140) // CTAボタンとタブバーのスペース
         }
         .background(DesignSystem.background)
         .navigationTitle("予約")
@@ -1811,7 +2194,7 @@ struct ReservationView: View {
                 Spacer()
                 
                 Button(action: {
-                    showingReservationComplete = true
+                    submitReservation()
                 }) {
                     HStack {
                         Image(systemName: "calendar.badge.checkmark")
@@ -1848,6 +2231,42 @@ struct ReservationView: View {
     
     var isReservationFormValid: Bool {
         !customerName.isEmpty && !phoneNumber.isEmpty && !email.isEmpty
+    }
+    
+    private func submitReservation() {
+        guard isReservationFormValid && !isSubmitting else { return }
+        
+        isSubmitting = true
+        
+        let reservation = Reservation(
+            customerName: customerName,
+            phone: phoneNumber,
+            email: email,
+            partySize: partySize,
+            date: selectedDate,
+            timeSlot: selectedTimeSlot,
+            specialRequests: specialRequests,
+            status: .requested,
+            createdAt: Date()
+        )
+        
+        Task {
+            do {
+                let reservationId = try await firebaseService.createReservation(reservation)
+                print("Reservation created with ID: \(reservationId)")
+                
+                await MainActor.run {
+                    showingReservationComplete = true
+                    isSubmitting = false
+                }
+            } catch {
+                print("Error creating reservation: \(error)")
+                await MainActor.run {
+                    isSubmitting = false
+                    // エラーハンドリング（アラート表示など）
+                }
+            }
+        }
     }
 }
 
@@ -1998,7 +2417,7 @@ struct CouponView: View {
                     }
                 }
                 .padding(.horizontal, DesignSystem.spacing.l)
-                .padding(.bottom, DesignSystem.spacing.xxl)
+                .padding(.bottom, 120) // タブバーとの余白を確保
             }
         }
         .background(DesignSystem.background)
@@ -2008,6 +2427,11 @@ struct CouponView: View {
 }
 
 struct ContentView: View {
+    @StateObject private var cartManager = CartManager()
+    @StateObject private var firebaseService = FirebaseService()
+    @State private var dishes: [Dish] = []
+    @State private var isLoading = true
+    
     init() {
         // タブバーの背景設定
         let tabAppearance = UITabBarAppearance()
@@ -2050,34 +2474,34 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             TabView {
-                HomeView()
+                HomeView(dishes: dishes, isLoading: isLoading)
+                    .environmentObject(cartManager)
                     .tabItem {
                         Image(systemName: "house.fill")
                         Text("ホーム")
                     }
                 
-                MenuView()
+                MenuView(dishes: dishes, isLoading: isLoading)
+                    .environmentObject(cartManager)
                     .tabItem {
                         Image(systemName: "menucard.fill")
                         Text("メニュー")
                     }
                 
                 CartView()
+                    .environmentObject(cartManager)
                     .tabItem {
                         Image(systemName: "cart.fill")
                         Text("カート")
+                        if cartManager.totalItems > 0 {
+                            Text("\(cartManager.totalItems)")
+                        }
                     }
                 
                 CouponView()
                     .tabItem {
                         Image(systemName: "ticket.fill")
                         Text("クーポン")
-                    }
-                
-                ReservationView()
-                    .tabItem {
-                        Image(systemName: "calendar")
-                        Text("予約")
                     }
                 
                 StoreInfoView()
@@ -2089,5 +2513,28 @@ struct ContentView: View {
             .accentColor(DesignSystem.primaryRed)
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .preferredColorScheme(.light) // ダークモードを無効化
+        .onAppear {
+            loadFirebaseData()
+        }
+    }
+    
+    private func loadFirebaseData() {
+        Task {
+            do {
+                let firebaseDishes = try await firebaseService.fetchDishes()
+                await MainActor.run {
+                    self.dishes = firebaseDishes.isEmpty ? Dish.sampleDishes : firebaseDishes
+                    self.isLoading = false
+                }
+            } catch {
+                print("Error loading Firebase data: \(error)")
+                await MainActor.run {
+                    self.dishes = Dish.sampleDishes
+                    self.isLoading = false
+                }
+            }
+        }
     }
 }
+
