@@ -567,32 +567,6 @@ struct HeroSection: View {
                         .foregroundColor(.white.opacity(0.9))
                 }
                 
-                HStack(spacing: DesignSystem.spacing.l) {
-                    Button(action: {}) {
-                        HStack {
-                            Image(systemName: "menucard.fill")
-                            Text("メニュー")
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, DesignSystem.spacing.xl)
-                        .padding(.vertical, DesignSystem.spacing.m)
-                        .background(DesignSystem.primaryRed)
-                        .cornerRadius(DesignSystem.cornerRadius.button)
-                    }
-                    
-                    Button(action: {}) {
-                        HStack {
-                            Image(systemName: "calendar")
-                            Text("予約")
-                        }
-                        .foregroundColor(DesignSystem.primaryRed)
-                        .padding(.horizontal, DesignSystem.spacing.xl)
-                        .padding(.vertical, DesignSystem.spacing.m)
-                        .background(.white)
-                        .cornerRadius(DesignSystem.cornerRadius.button)
-                    }
-                }
-                
                 Spacer()
             }
             .padding(DesignSystem.spacing.xl)
@@ -612,12 +586,12 @@ struct HomeView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: DesignSystem.spacing.xxl) {
+            VStack(spacing: 0) {
                 ZStack {
                     HeroSection()
                     
                     // Navigation Links overlay
-                    VStack {
+        VStack {
                         Spacer()
                         
                         HStack(spacing: DesignSystem.spacing.l) {
@@ -648,6 +622,7 @@ struct HomeView: View {
                         .padding(.bottom, DesignSystem.spacing.xl)
                     }
                 }
+                .padding(.bottom, DesignSystem.spacing.xxl)
                 
                 VStack(alignment: .leading, spacing: DesignSystem.spacing.l) {
                     HStack {
@@ -669,6 +644,7 @@ struct HomeView: View {
             }
             .padding(.bottom, 100) // タブバーとの余白を確保
         }
+        .edgesIgnoringSafeArea(.top)
         .background(DesignSystem.background)
         .navigationBarHidden(true)
     }
@@ -2472,47 +2448,59 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationView {
-            TabView {
+        TabView {
+            NavigationView {
                 HomeView(dishes: dishes, isLoading: isLoading)
-                    .environmentObject(cartManager)
-                    .tabItem {
-                        Image(systemName: "house.fill")
-                        Text("ホーム")
-                    }
-                
-                MenuView(dishes: dishes, isLoading: isLoading)
-                    .environmentObject(cartManager)
-                    .tabItem {
-                        Image(systemName: "menucard.fill")
-                        Text("メニュー")
-                    }
-                
-                CartView()
-                    .environmentObject(cartManager)
-                    .tabItem {
-                        Image(systemName: "cart.fill")
-                        Text("カート")
-                        if cartManager.totalItems > 0 {
-                            Text("\(cartManager.totalItems)")
-                        }
-                    }
-                
-                CouponView()
-                    .tabItem {
-                        Image(systemName: "ticket.fill")
-                        Text("クーポン")
-                    }
-                
-                StoreInfoView()
-                    .tabItem {
-                        Image(systemName: "info.circle.fill")
-                        Text("店舗情報")
-                    }
             }
-            .accentColor(DesignSystem.primaryRed)
+            .navigationViewStyle(StackNavigationViewStyle())
+            .environmentObject(cartManager)
+            .tabItem {
+                Image(systemName: "house.fill")
+                Text("ホーム")
+            }
+            
+            NavigationView {
+                MenuView(dishes: dishes, isLoading: isLoading)
+            }
+            .navigationViewStyle(StackNavigationViewStyle())
+            .environmentObject(cartManager)
+            .tabItem {
+                Image(systemName: "menucard.fill")
+                Text("メニュー")
+            }
+            
+            NavigationView {
+                CartView()
+            }
+            .navigationViewStyle(StackNavigationViewStyle())
+            .environmentObject(cartManager)
+            .tabItem {
+                Image(systemName: "cart.fill")
+                Text("カート")
+                if cartManager.totalItems > 0 {
+                    Text("\(cartManager.totalItems)")
+                }
+            }
+            
+            NavigationView {
+                CouponView()
+            }
+            .navigationViewStyle(StackNavigationViewStyle())
+            .tabItem {
+                Image(systemName: "ticket.fill")
+                Text("クーポン")
+            }
+            
+            NavigationView {
+                StoreInfoView()
+            }
+            .navigationViewStyle(StackNavigationViewStyle())
+            .tabItem {
+                Image(systemName: "info.circle.fill")
+                Text("店舗情報")
+            }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
+        .accentColor(DesignSystem.primaryRed)
         .preferredColorScheme(.light) // ダークモードを無効化
         .onAppear {
             loadFirebaseData()
