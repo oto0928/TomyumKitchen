@@ -230,6 +230,71 @@
             margin-right: 0.5rem;
         }
 
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .action-btn:hover {
+            background: #15803d;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .action-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .action-btn.preparing-btn {
+            background: #f59e0b;
+        }
+
+        .action-btn.preparing-btn:hover {
+            background: #d97706;
+        }
+
+        .action-btn.confirm-btn {
+            background: #3b82f6;
+        }
+
+        .action-btn.confirm-btn:hover {
+            background: #2563eb;
+        }
+
+        .completed-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px dashed #e9ecef;
+        }
+
+        .completed-section h3 {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .completed-item {
+            opacity: 0.7;
+        }
+
         @media (max-width: 768px) {
             .content-grid {
                 grid-template-columns: 1fr;
@@ -319,7 +384,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, query, orderBy, limit, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, query, orderBy, limit, where, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase設定（実際のプロジェクト設定）
         const firebaseConfig = {
@@ -361,6 +426,9 @@
                     const date = new Date(data.date.seconds * 1000);
                     const createdAt = new Date(data.createdAt.seconds * 1000);
                     
+                    // 確認完了ボタンの表示条件
+                    const showConfirmButton = data.status === 'requested';
+                    
                     html += `
                         <div class="reservation-item">
                             <div class="item-header">
@@ -376,6 +444,13 @@
                                 ${data.specialRequests ? `<div><i class="fas fa-comment"></i> ${data.specialRequests}</div>` : ''}
                                 <div><i class="fas fa-clock"></i> 予約日時: ${createdAt.toLocaleString('ja-JP')}</div>
                             </div>
+                            ${showConfirmButton ? `
+                                <div class="action-buttons">
+                                    <button class="action-btn confirm-btn" onclick="confirmReservation('${doc.id}')">
+                                        <i class="fas fa-check"></i>確認完了
+                                    </button>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 });
@@ -393,7 +468,7 @@
             try {
                 console.log('注文データの読み込みを開始...');
                 const ordersRef = collection(db, 'orders');
-                const q = query(ordersRef, orderBy('createdAt', 'desc'), limit(10));
+                const q = query(ordersRef, orderBy('createdAt', 'desc'), limit(20));
                 const snapshot = await getDocs(q);
                 
                 console.log('注文データの取得結果:', snapshot.size, '件');
@@ -408,10 +483,29 @@
                     return;
                 }
 
-                let html = '';
+                // 注文を受け取り完了とそれ以外に分類
+                const activeOrders = [];
+                const completedOrders = [];
+                
                 snapshot.forEach(doc => {
                     const data = doc.data();
+                    if (data.status === 'delivered') {
+                        completedOrders.push({ id: doc.id, data });
+                    } else {
+                        activeOrders.push({ id: doc.id, data });
+                    }
+                });
+
+                let html = '';
+                
+                // アクティブな注文を表示
+                activeOrders.forEach(order => {
+                    const data = order.data;
                     const createdAt = new Date(data.createdAt.seconds * 1000);
+                    
+                    // ボタンの表示条件
+                    const showPreparingButton = data.status === 'pending';
+                    const showDeliveredButton = data.status === 'preparing' || data.status === 'ready';
                     
                     html += `
                         <div class="order-item">
@@ -429,9 +523,50 @@
                                 ${data.deliveryInstructions ? `<div><i class="fas fa-comment"></i> ${data.deliveryInstructions}</div>` : ''}
                                 <div><i class="fas fa-clock"></i> 注文日時: ${createdAt.toLocaleString('ja-JP')}</div>
                             </div>
+                            <div class="action-buttons">
+                                ${showPreparingButton ? `
+                                    <button class="action-btn preparing-btn" onclick="updateOrderStatus('${order.id}', 'preparing')">
+                                        <i class="fas fa-fire"></i>注文作成完了
+                                    </button>
+                                ` : ''}
+                                ${showDeliveredButton ? `
+                                    <button class="action-btn" onclick="updateOrderStatus('${order.id}', 'delivered')">
+                                        <i class="fas fa-check-circle"></i>受け取り完了
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
                     `;
                 });
+                
+                // 受け取り完了した注文を下部に表示
+                if (completedOrders.length > 0) {
+                    html += '<div class="completed-section"><h3><i class="fas fa-check-double"></i> 受け取り完了</h3>';
+                    completedOrders.forEach(order => {
+                        const data = order.data;
+                        const createdAt = new Date(data.createdAt.seconds * 1000);
+                        
+                        html += `
+                            <div class="order-item completed-item">
+                                <div class="item-header">
+                                    <span class="customer-name">${data.customerInfo.name}</span>
+                                    <span class="status ${data.status}">${getOrderStatusText(data.status)}</span>
+                                </div>
+                                <div class="item-details">
+                                    <div><i class="fas fa-phone"></i> ${data.customerInfo.phone}</div>
+                                    <div><i class="fas fa-envelope"></i> ${data.customerInfo.email}</div>
+                                    <div><i class="fas fa-map-marker-alt"></i> ${data.customerInfo.address}</div>
+                                    <div><i class="fas fa-shopping-basket"></i> ${data.items.length}品目</div>
+                                    <div><i class="fas fa-yen-sign"></i> ¥${data.total.toLocaleString()}</div>
+                                    <div><i class="fas fa-truck"></i> ${data.deliveryTime}</div>
+                                    ${data.deliveryInstructions ? `<div><i class="fas fa-comment"></i> ${data.deliveryInstructions}</div>` : ''}
+                                    <div><i class="fas fa-clock"></i> 注文日時: ${createdAt.toLocaleString('ja-JP')}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
                 
                 ordersList.innerHTML = html;
                 updateStats();
@@ -463,6 +598,64 @@
             };
             return statusMap[status] || status;
         }
+
+        // 予約確認完了関数
+        window.confirmReservation = async function(reservationId) {
+            try {
+                const confirmed = confirm('この予約を確認完了にしますか？');
+                if (!confirmed) return;
+                
+                const reservationRef = doc(db, 'reservations', reservationId);
+                await updateDoc(reservationRef, {
+                    status: 'confirmed',
+                    confirmedAt: new Date()
+                });
+                
+                console.log('予約を確認完了しました:', reservationId);
+                alert('予約を確認完了しました');
+                
+                // リストを再読み込み
+                loadReservations();
+            } catch (error) {
+                console.error('予約確認エラー:', error);
+                alert('予約確認に失敗しました: ' + error.message);
+            }
+        };
+
+        // 注文ステータス更新関数
+        window.updateOrderStatus = async function(orderId, newStatus) {
+            try {
+                let confirmMessage = '';
+                if (newStatus === 'preparing') {
+                    confirmMessage = '注文を作成完了にしますか？';
+                } else if (newStatus === 'delivered') {
+                    confirmMessage = '受け取り完了にしますか？';
+                }
+                
+                const confirmed = confirm(confirmMessage);
+                if (!confirmed) return;
+                
+                const orderRef = doc(db, 'orders', orderId);
+                await updateDoc(orderRef, {
+                    status: newStatus,
+                    updatedAt: new Date()
+                });
+                
+                console.log('注文ステータスを更新しました:', orderId, newStatus);
+                
+                if (newStatus === 'preparing') {
+                    alert('注文を作成完了しました');
+                } else if (newStatus === 'delivered') {
+                    alert('受け取り完了しました');
+                }
+                
+                // リストを再読み込み
+                loadOrders();
+            } catch (error) {
+                console.error('注文ステータス更新エラー:', error);
+                alert('ステータス更新に失敗しました: ' + error.message);
+            }
+        };
 
         async function updateStats() {
             try {
