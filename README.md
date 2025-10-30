@@ -1,10 +1,8 @@
 # 🍜 Tomyum Kitchen
 
 <div align="center">
-
-![App Icon](TomyumKitchen/Assets.xcassets/AppIcon.appiconset/tomyumkitchen_ikon.jpg)
-
 **本格タイ料理の温かい味わいをお届けする、モダンなレストランアプリ**
+URL：https://apps.apple.com/jp/app/tomyum-kitchen/id6753083421
 
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org)
 [![SwiftUI](https://img.shields.io/badge/SwiftUI-iOS%2017.0+-blue.svg)](https://developer.apple.com/swiftui/)
